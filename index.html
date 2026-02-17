@@ -548,8 +548,8 @@ function getSampleData() {
   ];
 }
 
-// ===== 起動 =====
-loadFeeds();
+// ページを開いたら自動で読み込む
+document.addEventListener('DOMContentLoaded', loadFeeds);
 </script>
 </body>
 </html>
