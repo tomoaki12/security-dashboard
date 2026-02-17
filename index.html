@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security Dashboard Global</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0D1117;
+    --surface:   #161B22;
+    --surface2:  #1C2128;
+    --border:    #30363D;
+    --text:      #E6EDF3;
+    --text-mid:  #8B949E;
+    --text-dim:  #484F58;
+    --accent:    #58A6FF;
+    --critical:  #FF4444;
+    --high:      #FF8C00;
+    --medium:    #FFD700;
+    --low:       #3FB950;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(88,166,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(88,166,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+  .container { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 24px 60px; }
+
+  /* ヘッダー */
+  .header {
+    padding: 28px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent), #A371F7);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    box-shadow: 0 0 20px rgba(88,166,255,0.2);
+  }
+  .header-title h1 { font-size: 20px; font-weight: 700; }
+  .header-title p { font-size: 12px; color: var(--text-mid); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .last-updated {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim);
+    background: var(--surface); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border);
+  }
+  .refresh-btn {
+    background: var(--accent); color: #0D1117; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 700;
+    font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; transition: all 0.2s;
+  }
+  .refresh-btn:hover { background: #79C0FF; transform: translateY(-1px); }
+  .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  /* ソースタグ */
+  .source-tags {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; align-items: center;
+  }
+  .source-label { font-size: 11px; color: var(--text-mid); font-family: 'JetBrains Mono', monospace; }
+  .source-tag {
+    font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text-mid); cursor: pointer; transition: all 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .source-tag:hover { border-color: var(--accent); color: var(--accent); }
+  .source-tag.active { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.1); }
+  .source-flag { font-size: 14px; }
+
+  /* 統計 */
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px; margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--accent); }
+  .stat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 8px currentColor; }
+  .stat-num { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--text-mid); margin-top: 3px; }
+
+  /* フィルター */
+  .filter-bar {
+    display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; align-items: center;
+  }
+  .filter-label { font-size: 12px; color: var(--text-mid); }
+  .filter-btn {
+    border: 1px solid var(--border); background: var(--surface); color: var(--text-mid);
+    border-radius: 6px; padding: 5px 12px; font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: all 0.15s; font-weight: 500;
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .filter-btn.active { background: var(--accent); border-color: var(--accent); color: #0D1117; font-weight: 700; }
+  .search-box {
+    margin-left: auto; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px; font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif; color: var(--text); width: 240px; transition: border-color 0.2s;
+  }
+  .search-box:focus { outline: none; border-color: var(--accent); }
+  .search-box::placeholder { color: var(--text-dim); }
+
+  /* カード */
+  .items-list { display: flex; flex-direction: column; gap: 8px; }
+  .item-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px 18px; display: grid; grid-template-columns: auto 1fr auto;
+    gap: 14px; align-items: start; transition: all 0.2s; position: relative; overflow: hidden;
+  }
+  .item-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .item-card.critical { border-color: rgba(255,68,68,0.3); background: rgba(255,68,68,0.05); }
+  .item-card.critical::before { background: var(--critical); }
+  .item-card.high    { border-color: rgba(255,140,0,0.3); background: rgba(255,140,0,0.05); }
+  .item-card.high::before    { background: var(--high); }
+  .item-card.medium  { border-color: rgba(255,215,0,0.2); background: rgba(255,215,0,0.04); }
+  .item-card.medium::before  { background: var(--medium); }
+  .item-card.low     { border-color: rgba(63,185,80,0.2); background: rgba(63,185,80,0.04); }
+  .item-card.low::before     { background: var(--low); }
+  .item-card:hover { transform: translateX(3px); }
+  .item-card.read { opacity: 0.45; }
+
+  .severity-badge {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+    padding: 3px 7px; border-radius: 4px; white-space: nowrap; letter-spacing: 0.5px; margin-top: 2px;
+  }
+  .badge-critical { background: rgba(255,68,68,0.2); color: var(--critical); border: 1px solid rgba(255,68,68,0.4); }
+  .badge-high     { background: rgba(255,140,0,0.2); color: var(--high);     border: 1px solid rgba(255,140,0,0.4); }
+  .badge-medium   { background: rgba(255,215,0,0.15); color: var(--medium);  border: 1px solid rgba(255,215,0,0.3); }
+  .badge-low      { background: rgba(63,185,80,0.15); color: var(--low);     border: 1px solid rgba(63,185,80,0.3); }
+
+  .item-body { min-width: 0; }
+  .item-title { font-size: 13.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.45; }
+  .item-title a { color: inherit; text-decoration: none; }
+  .item-title a:hover { color: var(--accent); }
+  .item-card.read .item-title { text-decoration: line-through; }
+  .item-meta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .item-date { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .item-source-badge {
+    font-size: 10px; color: var(--text-mid); background: var(--surface2);
+    padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 4px;
+  }
+  .item-memo {
+    margin-top: 8px; font-size: 12px; color: var(--text-mid);
+    background: var(--surface2); padding: 7px 12px; border-radius: 6px;
+    border-left: 2px solid var(--accent); display: none;
+  }
+  .item-memo.show { display: block; }
+  .memo-input-area { margin-top: 8px; display: none; }
+  .memo-input-area.show { display: block; }
+  .memo-input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif; color: var(--text); resize: vertical; min-height: 56px;
+  }
+  .memo-input:focus { outline: none; border-color: var(--accent); }
+  .memo-save {
+    margin-top: 5px; background: var(--accent); color: #0D1117; border: none;
+    border-radius: 6px; padding: 5px 14px; font-size: 12px; font-weight: 700;
+    font-family: 'Noto Sans JP', sans-serif; cursor: pointer;
+  }
+
+  .item-actions { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; flex-shrink: 0; }
+  .action-btn {
+    border: 1px solid var(--border); background: var(--surface2); color: var(--text-mid);
+    border-radius: 6px; padding: 4px 10px; font-size: 11px;
+    font-family: 'Noto Sans JP', sans-serif; cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  }
+  .action-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .action-btn.marked { background: rgba(63,185,80,0.12); border-color: var(--low); color: var(--low); }
+
+  .status-msg { text-align: center; padding: 60px 20px; color: var(--text-mid); font-size: 14px; }
+  .status-msg .icon { font-size: 36px; margin-bottom: 12px; display: block; }
+
+  /* プログレスバー */
+  .progress-bar {
+    height: 2px; background: var(--border); border-radius: 2px; margin-bottom: 20px; overflow: hidden; display: none;
+  }
+  .progress-bar.show { display: block; }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), #A371F7);
+    border-radius: 2px; transition: width 0.3s ease; width: 0%;
+  }
+
+  .spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid rgba(88,166,255,0.3); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .footer {
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border);
+    text-align: center; font-size: 11px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+    line-height: 2;
+  }
+
+  @media (max-width: 640px) {
+    .item-card { grid-template-columns: 1fr; }
+    .item-actions { flex-direction: row; }
+    .search-box { width: 100%; margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ヘッダー -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">🌐</div>
+      <div class="header-title">
+        <h1>Security Dashboard Global</h1>
+        <p>IPA / JVN / CISA / NVD / JPCERT and more</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="last-updated" id="lastUpdated">最終更新：--</div>
+      <button class="refresh-btn" id="refreshBtn" onclick="loadFeeds()">
+        <span id="refreshIcon">↻</span> 更新
+      </button>
+    </div>
+  </div>
+
+  <!-- プログレスバー -->
+  <div class="progress-bar" id="progressBar">
+    <div class="progress-fill" id="progressFill"></div>
+  </div>
+
+  <!-- ソースフィルター -->
+  <div class="source-tags" id="sourceTags">
+    <span class="source-label">SOURCE :</span>
+    <span class="source-tag active" onclick="setSource('all', this)">🌐 すべて</span>
+  </div>
+
+  <!-- 統計 -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-dot" style="background:var(--accent);color:var(--accent)"></div>
+      <div><div class="stat-num" id="statTotal">0</div><div class="stat-label">合計</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-dot" style="background:var(--critical);color:var(--critical)"></div>
+      <div><div class="stat-num" id="statCritical" style="color:var(--critical)">0</div><div class="stat-label">緊急 CRITICAL</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-dot" style="background:var(--high);color:var(--high)"></div>
+      <div><div class="stat-num" id="statHigh" style="color:var(--high)">0</div><div class="stat-label">重要 HIGH</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-dot" style="background:var(--medium);color:var(--medium)"></div>
+      <div><div class="stat-num" id="statMedium" style="color:var(--medium)">0</div><div class="stat-label">警告 MEDIUM</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-dot" style="background:var(--low);color:var(--low)"></div>
+      <div><div class="stat-num" id="statLow" style="color:var(--low)">0</div><div class="stat-label">注意 LOW</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-dot" style="background:#8B949E;color:#8B949E"></div>
+      <div><div class="stat-num" id="statUnread">0</div><div class="stat-label">未読</div></div>
+    </div>
+  </div>
+
+  <!-- フィルター -->
+  <div class="filter-bar">
+    <span class="filter-label">絞り込み：</span>
+    <button class="filter-btn active" onclick="setFilter('all', this)">すべて</button>
+    <button class="filter-btn" onclick="setFilter('critical', this)" style="color:var(--critical)">緊急</button>
+    <button class="filter-btn" onclick="setFilter('high', this)" style="color:var(--high)">重要</button>
+    <button class="filter-btn" onclick="setFilter('medium', this)" style="color:var(--medium)">警告</button>
+    <button class="filter-btn" onclick="setFilter('low', this)" style="color:var(--low)">注意</button>
+    <button class="filter-btn" onclick="setFilter('unread', this)">📬 未読のみ</button>
+    <input class="search-box" type="text" placeholder="🔍 キーワード検索（CVE番号など）..." oninput="renderItems()" id="searchBox">
+  </div>
+
+  <!-- リスト -->
+  <div id="itemsList" class="items-list"></div>
+
+  <div class="footer">
+    Security Dashboard Global v2.0 &nbsp;|&nbsp; 個人利用専用<br>
+    データ出典: IPA・JVN・JPCERT/CC・CISA・NVD・The Hacker News・Bleeping Computer・Krebs on Security
+  </div>
+</div>
+
+<script>
+// ===== 設定 =====
+let allItems = [];
+let currentFilter = 'all';
+let currentSource = 'all';
+let readItems   = JSON.parse(localStorage.getItem('sec_read')   || '[]');
+let memos       = JSON.parse(localStorage.getItem('sec_memos')  || '{}');
+
+// RSS2JSONプロキシ（CORSを回避）
+const PROXY = 'https://api.rss2json.com/v1/api.json?rss_url=';
+
+const FEEDS = [
+  // 🇯🇵 日本
+  { id: 'ipa',     flag: '🇯🇵', name: 'IPA',         url: PROXY + encodeURIComponent('https://www.ipa.go.jp/security/rss/alert.rdf'),           defaultSeverity: 'high' },
+  { id: 'jvn',     flag: '🇯🇵', name: 'JVN',         url: PROXY + encodeURIComponent('https://jvndb.jvn.jp/rss/jvndb_new.rdf'),                  defaultSeverity: 'medium' },
+  { id: 'jpcert',  flag: '🇯🇵', name: 'JPCERT',      url: PROXY + encodeURIComponent('https://www.jpcert.or.jp/rss/jpcert.rdf'),                  defaultSeverity: 'high' },
+  // 🇺🇸 米国
+  { id: 'cisa',    flag: '🇺🇸', name: 'CISA',        url: PROXY + encodeURIComponent('https://www.cisa.gov/cybersecurity-advisories/all.xml'),    defaultSeverity: 'high' },
+  { id: 'nvd',     flag: '🇺🇸', name: 'NVD',         url: PROXY + encodeURIComponent('https://nvd.nist.gov/feeds/xml/cve/misc/nvd-rss.xml'),      defaultSeverity: 'medium' },
+  { id: 'krebs',   flag: '🇺🇸', name: 'Krebs',       url: PROXY + encodeURIComponent('https://krebsonsecurity.com/feed/'),                        defaultSeverity: 'high' },
+  { id: 'thn',     flag: '🌐',  name: 'HackerNews',  url: PROXY + encodeURIComponent('https://feeds.feedburner.com/TheHackersNews'),               defaultSeverity: 'medium' },
+  { id: 'bleeping',flag: '🌐',  name: 'BleepingComp',url: PROXY + encodeURIComponent('https://www.bleepingcomputer.com/feed/'),                    defaultSeverity: 'medium' },
+  // 🇪🇺 欧州
+  { id: 'enisa',   flag: '🇪🇺', name: 'ENISA',       url: PROXY + encodeURIComponent('https://www.enisa.europa.eu/publications/rss'),             defaultSeverity: 'medium' },
+];
+
+// ===== 重要度判定 =====
+function getSeverity(title, desc, def) {
+  const t = (title + ' ' + (desc || '')).toLowerCase();
+  if (/critical|緊急|cvss.?10|cvss.?9\.|actively exploit|zero.?day|ゼロデイ/.test(t)) return 'critical';
+  if (/high|重要|重大|cvss.?[78]\.|ransomware|ランサム|remote code|rce/.test(t)) return 'high';
+  if (/medium|警告|moderate|cvss.?[56]\.|xss|sql injection/.test(t)) return 'medium';
+  if (/low|注意|minor|informational/.test(t)) return 'low';
+  return def;
+}
+
+const sevLabel = { critical:'緊急', high:'重要', medium:'警告', low:'注意' };
+const sevOrder = { critical:0, high:1, medium:2, low:3 };
+
+// ===== フィード読み込み =====
+async function loadFeeds() {
+  const btn  = document.getElementById('refreshBtn');
+  const icon = document.getElementById('refreshIcon');
+  const prog = document.getElementById('progressBar');
+  const fill = document.getElementById('progressFill');
+
+  btn.disabled = true;
+  icon.innerHTML = '<span class="spinner"></span>';
+  prog.classList.add('show');
+  fill.style.width = '5%';
+
+  document.getElementById('itemsList').innerHTML = `
+    <div class="status-msg"><span class="icon"><span class="spinner"></span></span><p>世界中の情報を収集中...</p></div>`;
+
+  allItems = [];
+  let done = 0;
+
+  const results = await Promise.allSettled(
+    FEEDS.map(feed => fetchFeed(feed))
+  );
+
+  results.forEach((result, i) => {
+    done++;
+    fill.style.width = (done / FEEDS.length * 100) + '%';
+    if (result.status === 'fulfilled') {
+      allItems.push(...result.value);
+    }
+  });
+
+  if (allItems.length === 0) allItems = getSampleData();
+
+  // ソート（重要度→日付）
+  allItems.sort((a, b) => {
+    if (sevOrder[a.severity] !== sevOrder[b.severity])
+      return sevOrder[a.severity] - sevOrder[b.severity];
+    return b.date - a.date;
+  });
+
+  buildSourceTags();
+  updateStats();
+  renderItems();
+
+  const now = new Date();
+  document.getElementById('lastUpdated').textContent =
+    `${now.getMonth()+1}/${now.getDate()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')} 更新`;
+
+  setTimeout(() => { prog.classList.remove('show'); fill.style.width = '0%'; }, 600);
+  btn.disabled = false;
+  icon.textContent = '↻';
+}
+
+async function fetchFeed(feed) {
+  const res = await fetch(feed.url, { signal: AbortSignal.timeout(8000) });
+  const data = await res.json();
+  if (data.status !== 'ok' || !data.items) return [];
+  return data.items.slice(0, 12).map(item => ({
+    id:       (feed.id + '_' + btoa(encodeURIComponent(item.link || item.title || Math.random())).slice(0,16)),
+    title:    item.title || 'タイトルなし',
+    link:     item.link  || '#',
+    date:     item.pubDate ? new Date(item.pubDate) : new Date(),
+    sourceId: feed.id,
+    sourceName: feed.name,
+    flag:     feed.flag,
+    desc:     item.description || '',
+    severity: getSeverity(item.title, item.description, feed.defaultSeverity)
+  }));
+}
+
+// ===== ソースタグ生成 =====
+function buildSourceTags() {
+  const wrap = document.getElementById('sourceTags');
+  const sources = [...new Set(allItems.map(i => i.sourceId))];
+  wrap.innerHTML = '<span class="source-label">SOURCE :</span>';
+
+  const all = document.createElement('span');
+  all.className = 'source-tag active';
+  all.innerHTML = '🌐 すべて';
+  all.onclick = () => setSource('all', all);
+  wrap.appendChild(all);
+
+  sources.forEach(sid => {
+    const feed = FEEDS.find(f => f.id === sid);
+    if (!feed) return;
+    const count = allItems.filter(i => i.sourceId === sid).length;
+    const tag = document.createElement('span');
+    tag.className = 'source-tag';
+    tag.innerHTML = `<span class="source-flag">${feed.flag}</span>${feed.name} <span style="color:var(--text-dim)">${count}</span>`;
+    tag.onclick = () => setSource(sid, tag);
+    wrap.appendChild(tag);
+  });
+}
+
+// ===== 統計 =====
+function updateStats() {
+  const c = { critical:0, high:0, medium:0, low:0 };
+  allItems.forEach(i => c[i.severity]++);
+  const unread = allItems.filter(i => !readItems.includes(i.id)).length;
+  document.getElementById('statTotal').textContent    = allItems.length;
+  document.getElementById('statCritical').textContent = c.critical;
+  document.getElementById('statHigh').textContent     = c.high;
+  document.getElementById('statMedium').textContent   = c.medium;
+  document.getElementById('statLow').textContent      = c.low;
+  document.getElementById('statUnread').textContent   = unread;
+}
+
+// ===== フィルター =====
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderItems();
+}
+
+function setSource(s, tag) {
+  currentSource = s;
+  document.querySelectorAll('.source-tag').forEach(t => t.classList.remove('active'));
+  tag.classList.add('active');
+  renderItems();
+}
+
+// ===== 描画 =====
+function renderItems() {
+  const search = document.getElementById('searchBox').value.toLowerCase();
+
+  const items = allItems.filter(item => {
+    if (currentSource !== 'all' && item.sourceId !== currentSource) return false;
+    if (currentFilter === 'unread' && readItems.includes(item.id)) return false;
+    if (!['all','unread'].includes(currentFilter) && item.severity !== currentFilter) return false;
+    if (search && !item.title.toLowerCase().includes(search) &&
+        !item.sourceName.toLowerCase().includes(search) &&
+        !(item.desc || '').toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  if (items.length === 0) {
+    document.getElementById('itemsList').innerHTML =
+      `<div class="status-msg"><span class="icon">🔍</span><p>該当する情報がありません</p></div>`;
+    return;
+  }
+
+  document.getElementById('itemsList').innerHTML = items.map(item => {
+    const isRead = readItems.includes(item.id);
+    const memo   = memos[item.id] || '';
+    const date   = item.date.toLocaleDateString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    return `
+    <div class="item-card ${item.severity} ${isRead ? 'read' : ''}" id="card-${item.id}">
+      <div><span class="severity-badge badge-${item.severity}">${sevLabel[item.severity]}</span></div>
+      <div class="item-body">
+        <div class="item-title">
+          <a href="${item.link}" target="_blank" rel="noopener">${item.title}</a>
+        </div>
+        <div class="item-meta">
+          <span class="item-date">${date}</span>
+          <span class="item-source-badge">${item.flag} ${item.sourceName}</span>
+        </div>
+        ${memo ? `<div class="item-memo show">📝 ${memo}</div>` : `<div class="item-memo" id="memo-${item.id}"></div>`}
+        <div class="memo-input-area" id="memoArea-${item.id}">
+          <textarea class="memo-input" id="memoInput-${item.id}" placeholder="メモを入力（CVE番号・対応状況など）...">${memo}</textarea>
+          <button class="memo-save" onclick="saveMemo('${item.id}')">保存</button>
+        </div>
+      </div>
+      <div class="item-actions">
+        <button class="action-btn ${isRead ? 'marked' : ''}" onclick="toggleRead('${item.id}')">
+          ${isRead ? '✓ 既読' : '既読にする'}
+        </button>
+        <button class="action-btn" onclick="toggleMemo('${item.id}')">📝 メモ</button>
+        <button class="action-btn" onclick="window.open('${item.link}','_blank')">🔗 開く</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== 既読 =====
+function toggleRead(id) {
+  readItems = readItems.includes(id) ? readItems.filter(i=>i!==id) : [...readItems, id];
+  localStorage.setItem('sec_read', JSON.stringify(readItems));
+  updateStats();
+  renderItems();
+}
+
+// ===== メモ =====
+function toggleMemo(id) {
+  document.getElementById('memoArea-' + id)?.classList.toggle('show');
+}
+function saveMemo(id) {
+  const val = document.getElementById('memoInput-' + id)?.value.trim();
+  if (val) memos[id] = val; else delete memos[id];
+  localStorage.setItem('sec_memos', JSON.stringify(memos));
+  document.getElementById('memoArea-' + id)?.classList.remove('show');
+  renderItems();
+}
+
+// ===== サンプルデータ =====
+function getSampleData() {
+  return [
+    { id:'s1', title:'[緊急] Apache HTTP Server の脆弱性（CVE-2024-XXXX）- リモートコード実行の可能性', link:'https://www.ipa.go.jp/security/', date:new Date(), sourceId:'ipa', sourceName:'IPA', flag:'🇯🇵', severity:'critical' },
+    { id:'s2', title:'CISA: Actively Exploited Vulnerability in Cisco IOS XE', link:'https://www.cisa.gov/', date:new Date(Date.now()-3600000), sourceId:'cisa', sourceName:'CISA', flag:'🇺🇸', severity:'critical' },
+    { id:'s3', title:'Ransomware Group Exploits Windows Zero-Day in Recent Attacks', link:'https://krebsonsecurity.com/', date:new Date(Date.now()-7200000), sourceId:'krebs', sourceName:'Krebs', flag:'🇺🇸', severity:'high' },
+    { id:'s4', title:'Microsoft Windows の脆弱性対策について（2024年12月）', link:'https://jvndb.jvn.jp/', date:new Date(Date.now()-86400000), sourceId:'jvn', sourceName:'JVN', flag:'🇯🇵', severity:'high' },
+    { id:'s5', title:'JPCERT/CC: フィッシングサイトに関する注意喚起', link:'https://www.jpcert.or.jp/', date:new Date(Date.now()-172800000), sourceId:'jpcert', sourceName:'JPCERT', flag:'🇯🇵', severity:'medium' },
+    { id:'s6', title:'New Phishing Campaign Targets Banking Customers Across Europe', link:'https://www.bleepingcomputer.com/', date:new Date(Date.now()-259200000), sourceId:'bleeping', sourceName:'BleepingComp', flag:'🌐', severity:'medium' },
+    { id:'s7', title:'NVD: CVE-2024-XXXX - OpenSSL Buffer Overflow Vulnerability', link:'https://nvd.nist.gov/', date:new Date(Date.now()-345600000), sourceId:'nvd', sourceName:'NVD', flag:'🇺🇸', severity:'medium' },
+    { id:'s8', title:'ENISA Threat Landscape 2024 - Annual Report Published', link:'https://www.enisa.europa.eu/', date:new Date(Date.now()-432000000), sourceId:'enisa', sourceName:'ENISA', flag:'🇪🇺', severity:'low' },
+  ];
+}
+
+// ===== 起動 =====
+loadFeeds();
+</script>
+</body>
+</html>
